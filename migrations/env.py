@@ -8,7 +8,7 @@ from sqlmodel import SQLModel, create_engine
 
 from db import DATABASE_URL
 
-from models.urls import Urls
+from models.urls import Url
 from models.users import User
 
 # this is the Alembic Config object, which provides

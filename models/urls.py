@@ -2,7 +2,7 @@ from sqlmodel import Field
 import datetime
 from .base import Base
 
-class Urls(Base, table=True):
+class Url(Base, table=True):
     __tablename__ = "urls"
 
     long_url: str
