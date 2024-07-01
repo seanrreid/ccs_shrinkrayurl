@@ -42,12 +42,20 @@ async def get_links(session: Session = Depends(get_session)):
 
 @app.post('/urls/add', status_code=200)
 async def add_link(url_data: Url, session: Session = Depends(get_session)):
-    new_link = Url(**url_data.dict())
+    new_link = Url(**url_data.model_dump())
     session.add(new_link)
     session.commit()
     session.refresh(new_link)
     return {"Url added:": new_link.title}
 
+@app.post('/users/add')
+async def add_user(user_data: User, session: Session = Depends(get_session)):
+    new_user = User(**user_data.model_dump())
+    new_user.hashed_password = User.hash_password(new_user.hashed_password);
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    return { "User added:", new_user.username }
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host='localhost', port=8000, reload=True)
