@@ -14,7 +14,7 @@ class InvalidToken(Base, table=True):
     __tablename__ = 'invalid_tokens'
 
     token: str
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Token(BaseModel):
     access_token: str
