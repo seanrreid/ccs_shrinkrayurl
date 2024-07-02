@@ -1,11 +1,19 @@
 import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, Query
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
+from datetime import timedelta
 from db import get_session
 
 from models.urls import Url
 from models.users import User
+from models.tokens import Token, TokenData, create_access_token
+from config import settings
+from services import get_current_user_token, get_user
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+import jwt
 
 # Setup our origins...
 # ...for now it's just our local environments
@@ -56,6 +64,33 @@ async def add_user(user_data: User, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(new_user)
     return { "User added:", new_user.username }
+
+
+@app.post('/login', status_code=200)
+async def login(user_data: User):
+    # try:
+    user: User = get_user(username=user_data.username)
+    print(f"USER IS?? {user}")
+    # except:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail="Invalid user credentials"
+    #     )
+
+    is_validated: bool = user.validate_password(user_data.hashed_password)
+
+    if not is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user credentials"
+        )
+
+    access_token_expires = timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"username": user.username}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host='localhost', port=8000, reload=True)
