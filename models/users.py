@@ -14,3 +14,7 @@ class User(Base, table=True):
     @staticmethod
     def hash_password(password) -> str:
         return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    def validate_password(self, pwd) -> bool:
+        return bcrypt.checkpw(password=pwd.encode(), hashed_password=self.hashed_password.encode())
+
