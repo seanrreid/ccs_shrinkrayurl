@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from fastapi import HTTPException, status
 
 env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
@@ -15,4 +16,9 @@ class Settings:
     SECRET_KEY: str = "1DE523ECB6C2CA6AC381EC627A917"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 240
     ALGORITHM = "HS256"
+    CREDENTIALS_EXCEPTION = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 settings = Settings()
