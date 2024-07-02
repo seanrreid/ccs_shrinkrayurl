@@ -10,6 +10,7 @@ from db import DATABASE_URL
 
 from models.urls import Url
 from models.users import User
+from models.tokens import Token
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
