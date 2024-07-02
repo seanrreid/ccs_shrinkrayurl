@@ -1,9 +1,13 @@
 import jwt
 import sqlalchemy as sa
 from datetime import datetime, timedelta, timezone
-from sqlmodel import Field, Column, DateTime
+from sqlmodel import Field, Column, DateTime, Session
 from pydantic import BaseModel
+from fastapi import Depends
+
 from models.base import Base
+
+from db import get_session
 from config import settings
 
 class InvalidToken(Base, table=True):
@@ -19,6 +23,8 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: str | None = None
 
+# Details in the docs here:
+# https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#update-the-token-path-operation
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     # Make a copy so we don't mutate the original data
@@ -40,6 +46,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-def is_token_blacklisted(token):
+def is_token_blacklisted(token, session: Session = Depends(get_session)):
     # Check if the token is blacklisted in the database
     return session.query(BlacklistedToken).filter_by(token=token).first() is not None
