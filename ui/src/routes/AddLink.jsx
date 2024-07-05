@@ -17,10 +17,15 @@ export const action = async ({ request }) => {
     const user_id = formData.get('user_id');
     const short_url = formData.get('short_url');
 
-    const linkData = { title, long_url, short_url, user_id: Number(user_id) };
+    const linkData = {
+        title,
+        long_url,
+        short_url,
+        user_id: Number(user_id),
+    };
 
     try {
-        const url = 'http://localhost:8000/links/add';
+        const url = `${import.meta.env.VITE_API_URL}/urls/add`;
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -41,7 +46,7 @@ export const action = async ({ request }) => {
 
 export async function loader() {
     try {
-        const url = `${import.meta.env.VITE_API_URL}/urls/`;
+        const url = `${import.meta.env.VITE_API_URL}/users/current`;
         const user = await fetch(url, {
             headers: {
                 Authorization: `Bearer ${localStorage.getItem('access_token')}`,
