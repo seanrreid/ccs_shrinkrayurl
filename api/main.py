@@ -1,21 +1,25 @@
 import uvicorn
 import jwt
-from typing import Annotated
 from datetime import timedelta
+from typing import Annotated
 from fastapi import FastAPI, Depends, status, HTTPException, Query
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from sqlmodel import Session, select
 from nanoid import generate
+
+# Call get_session from db.py
 from db import get_session
+
+# Get our settings via the config.py
 from config import settings
 
+# Load our models
 from models.urls import Url
 from models.users import User
-from models.tokens import Token, TokenData, InvalidToken, create_access_token
+from models.tokens import oauth2_scheme, Token, TokenData, InvalidToken, create_access_token, get_user_by_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # Setup our origins...
 # ...for now it's just our local environments
@@ -38,26 +42,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def lookup_user(username: str, session: Session = Depends(get_session)):
-    statement = select(User).where(User.username == username)
-    return session.exec(statement).first()
-
-
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY,
-                             algorithms=[settings.ALGORITHM])
-        username: str = payload.get("username")
-
-        if username is None:
-            raise settings.CREDENTIALS_EXCEPTION
-
-        token_data = TokenData(username=username)
-    except:
-        raise settings.CREDENTIALS_EXCEPTION
-    return token_data
 
 
 @app.get("/")
@@ -91,7 +75,7 @@ async def redirect_to_external_url(url: str = Query(...), session: Session = Dep
 
 
 @app.post('/urls/add', status_code=200)
-async def add_link(url_data: Url, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+async def add_link(url_data: Url, user: User = Depends(get_user_by_token), session: Session = Depends(get_session)):
     if user is not None:
         new_link = Url(**url_data.model_dump())
         new_link.short_url = generate(size=8)
@@ -104,9 +88,13 @@ async def add_link(url_data: Url, user: User = Depends(get_current_user), sessio
 
 
 @app.get('/users/current', status_code=200)
-async def get_user_id(current_user: str = Depends(get_current_user), session: Session = Depends(get_session)):
-    user_info = lookup_user(current_user.username, session)
-    return {"username": user_info.username, "id": user_info.id}
+async def get_user_id(current_user: str = Depends(get_user_by_token), session: Session = Depends(get_session)):
+    try:
+        user = User.lookup_user(current_user.username, session)
+    except:
+        raise settings.CREDENTIALS_EXCEPTION
+
+    return {"username": user.username, "id": user.id}
 
 
 @app.post('/users/add')
@@ -122,7 +110,7 @@ async def add_user(user_data: User, session: Session = Depends(get_session)):
 @app.post("/login", status_code=200)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: Session = Depends(get_session)):
     try:
-        user = lookup_user(form_data.username, session)
+        user = User.lookup_user(form_data.username, session)
     except:
         raise settings.CREDENTIALS_EXCEPTION
 
