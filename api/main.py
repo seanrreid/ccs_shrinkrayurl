@@ -46,8 +46,6 @@ def lookup_user(username: str, session: Session = Depends(get_session)):
 
 
 def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-
-    print(settings.ALGORITHM, settings.SECRET_KEY)
     try:
         payload = jwt.decode(token, settings.SECRET_KEY,
                              algorithms=[settings.ALGORITHM])
@@ -105,6 +103,12 @@ async def add_link(url_data: Url, user: User = Depends(get_current_user), sessio
         raise settings.CREDENTIALS_EXCEPTION
 
 
+@app.get('/users/current', status_code=200)
+async def get_user_id(current_user: str = Depends(get_current_user), session: Session = Depends(get_session)):
+    user_info = lookup_user(current_user.username, session)
+    return {"username": user_info.username, "id": user_info.id}
+
+
 @app.post('/users/add')
 async def add_user(user_data: User, session: Session = Depends(get_session)):
     new_user = User(**user_data.model_dump())
@@ -120,11 +124,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], sess
     try:
         user = lookup_user(form_data.username, session)
     except:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise settings.CREDENTIALS_EXCEPTION
 
     is_validated: bool = user.validate_password(form_data.password)
 
