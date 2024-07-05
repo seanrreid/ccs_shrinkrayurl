@@ -12,12 +12,11 @@ export default function MainNav() {
             <nav className={styles.nav}>
                 <ul>
                     {isAuth && (
-                        <li>
-                            <Link to="/">Home</Link>
-                        </li>
-                    )}
-                    {isAuth && (
                         <>
+                            <li>
+                                <Link to="/">Home</Link>
+                            </li>
+
                             <li>
                                 <Link to="/links">View Links</Link>
                             </li>
