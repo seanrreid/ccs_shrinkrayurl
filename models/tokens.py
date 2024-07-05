@@ -1,7 +1,7 @@
 import jwt
 import sqlalchemy as sa
 from datetime import datetime, timedelta, timezone
-from sqlmodel import Field, Column, DateTime, Session
+from sqlmodel import Field, Session
 from pydantic import BaseModel
 from fastapi import Depends
 
@@ -24,7 +24,7 @@ class TokenData(BaseModel):
     email: str | None = None
 
 # Details in the docs here:
-# https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#update-the-token-path-operation
+# https://fastapi.tiangolo.com/tutorial/secur≠ity/oauth2-jwt/#update-the-token-path-operation
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     # Make a copy so we don't mutate the original data
