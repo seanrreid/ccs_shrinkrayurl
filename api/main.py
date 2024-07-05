@@ -1,4 +1,5 @@
 import uvicorn
+import jwt
 from typing import Annotated
 from datetime import timedelta
 from fastapi import FastAPI, Depends, status, HTTPException, Query
@@ -12,7 +13,7 @@ from config import settings
 
 from models.urls import Url
 from models.users import User
-from models.tokens import Token, InvalidToken, create_access_token
+from models.tokens import Token, TokenData, InvalidToken, create_access_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -42,6 +43,23 @@ app.add_middleware(
 def lookup_user(username: str, session: Session = Depends(get_session)):
     statement = select(User).where(User.username == username)
     return session.exec(statement).first()
+
+
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+
+    print(settings.ALGORITHM, settings.SECRET_KEY)
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY,
+                             algorithms=[settings.ALGORITHM])
+        username: str = payload.get("username")
+
+        if username is None:
+            raise settings.CREDENTIALS_EXCEPTION
+
+        token_data = TokenData(username=username)
+    except:
+        raise settings.CREDENTIALS_EXCEPTION
+    return token_data
 
 
 @app.get("/")
@@ -75,13 +93,16 @@ async def redirect_to_external_url(url: str = Query(...), session: Session = Dep
 
 
 @app.post('/urls/add', status_code=200)
-async def add_link(url_data: Url, session: Session = Depends(get_session)):
-    new_link = Url(**url_data.model_dump())
-    new_link.short_url = generate(size=8)
-    session.add(new_link)
-    session.commit()
-    session.refresh(new_link)
-    return {"Url added:": new_link.title}
+async def add_link(url_data: Url, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    if user is not None:
+        new_link = Url(**url_data.model_dump())
+        new_link.short_url = generate(size=8)
+        session.add(new_link)
+        session.commit()
+        session.refresh(new_link)
+        return {"Url added:": new_link.title}
+    else:
+        raise settings.CREDENTIALS_EXCEPTION
 
 
 @app.post('/users/add')
@@ -96,23 +117,19 @@ async def add_user(user_data: User, session: Session = Depends(get_session)):
 
 @app.post("/login", status_code=200)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: Session = Depends(get_session)):
-    # try:
-    user = lookup_user(form_data.username, session)
-    # except:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Incorrect username or password",
-    #         headers={"WWW-Authenticate": "Bearer"},
-    #     )
-
-    is_validated: bool = user.validate_password(form_data.password)
-
-    if not is_validated:
+    try:
+        user = lookup_user(form_data.username, session)
+    except:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    is_validated: bool = user.validate_password(form_data.password)
+
+    if not is_validated:
+        raise settings.CREDENTIALS_EXCEPTION
 
     access_token_expires = timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
